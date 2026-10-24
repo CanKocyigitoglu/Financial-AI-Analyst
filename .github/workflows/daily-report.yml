@@ -2,7 +2,8 @@ name: Daily stock report
 
 on:
   schedule:
-    - cron: "0 12 * * 1-5" # hafta içi 12:00 UTC = 15:00 Türkiye
+    - cron: "0 15 * * 1-5" # hafta içi 15:00
+      timezone: "Europe/London" # yaz/kış saati geçişini GitHub kendisi halleder
   workflow_dispatch: # GitHub'da "Run workflow" ile elle çalıştırmak için
 
 jobs:

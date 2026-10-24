@@ -11,6 +11,7 @@ import re
 import warnings
 from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 import httpx
 import yfinance as yf
@@ -26,7 +27,7 @@ WATCHLIST = ["NVDA", "AAPL", "MSFT", "TSLA"]
 NEWS_CANDIDATES = 8  # modelin seçeceği aday haber sayısı
 NEWS_PER_TICKER = 3
 REPORTS_DIR = Path(__file__).parent / "reports"
-TR_TZ = dt.timezone(dt.timedelta(hours=3))  # Türkiye 2016'dan beri sabit UTC+3
+LOCAL_TZ = ZoneInfo("Europe/London")  # GitHub sunucusu UTC'de çalışır; saatler İngiltere saatiyle yazılsın
 
 
 class TickerInsight(BaseModel):
@@ -101,7 +102,7 @@ def build_section(symbol: str) -> str:
     ]
     for i in ids:
         n = d["news"][i]
-        when = dt.datetime.fromtimestamp(n["providerPublishTime"], TR_TZ).strftime("%d.%m %H:%M")
+        when = dt.datetime.fromtimestamp(n["providerPublishTime"], LOCAL_TZ).strftime("%d.%m %H:%M")
         lines.append(f"- [{n['title']}]({n['link']}) — {n['publisher']}, {when}")
     return "\n".join(lines)
 
@@ -135,7 +136,7 @@ def send_telegram(sections: list[str]) -> None:
 
 
 def main() -> None:
-    today = dt.date.today().isoformat()
+    today = dt.datetime.now(LOCAL_TZ).date().isoformat()
     sections = [f"# Günlük Hisse Raporu — {today}"]
     for symbol in WATCHLIST:
         try:
