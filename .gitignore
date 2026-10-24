@@ -2,5 +2,4 @@
 venv/
 __pycache__/
 reports/
-alert_state.json
 PROJE_GUNLUGU.md

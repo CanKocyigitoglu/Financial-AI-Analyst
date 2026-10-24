@@ -2,7 +2,8 @@
 
 Rakamlar ve haber linkleri doğrudan yfinance'ten gelir; model sadece
 en ilgili haberleri seçer ve kısa bir yorum yazar. Böylece model rakam
-veya link uyduramaz.
+veya link uyduramaz. Her rapor veritabanına kaydedilir; bir sonraki rapor
+öncekiyle karşılaştırılır.
 """
 import datetime as dt
 import html
@@ -20,6 +21,8 @@ from agno.models.groq import Groq
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
+import db
+
 load_dotenv()
 warnings.filterwarnings("ignore", module="yfinance")  # pandas uyarıları raporu kirletmesin
 
@@ -28,6 +31,14 @@ NEWS_CANDIDATES = 8  # modelin seçeceği aday haber sayısı
 NEWS_PER_TICKER = 3
 REPORTS_DIR = Path(__file__).parent / "reports"
 LOCAL_TZ = ZoneInfo("Europe/London")  # GitHub sunucusu UTC'de çalışır; saatler İngiltere saatiyle yazılsın
+# yfinance alanı -> (veritabanı sütunu, rapordaki etiket)
+RATINGS = {
+    "strongBuy": ("strong_buy", "Güçlü Al"),
+    "buy": ("buy", "Al"),
+    "hold": ("hold", "Tut"),
+    "sell": ("sell", "Sat"),
+    "strongSell": ("strong_sell", "Güçlü Sat"),
+}
 
 
 class TickerInsight(BaseModel):
@@ -43,6 +54,7 @@ analyst = Agent(
         "Sana bir hissenin fiyat, analist ve haber verileri verilecek.",
         "Sadece verilen verileri kullan; rakam, olay veya kaynak uydurma.",
         "Haberlerden yalnızca bu şirketle doğrudan ilgili olanları seç.",
+        "Son rapor verildiyse, ona göre neyin değiştiğini yorumda kısaca belirt.",
         "Yorumu Türkçe yaz.",
     ],
     output_schema=TickerInsight,
@@ -64,7 +76,7 @@ def fetch_data(symbol: str) -> dict:
     }
 
 
-def build_prompt(d: dict) -> str:
+def build_prompt(d: dict, prev: dict | None) -> str:
     r, t = d["ratings"], d["targets"]
     lines = [
         f"Hisse: {d['symbol']}",
@@ -72,20 +84,43 @@ def build_prompt(d: dict) -> str:
         f"Analistler: {r['strongBuy']} güçlü al, {r['buy']} al, {r['hold']} tut, "
         f"{r['sell']} sat, {r['strongSell']} güçlü sat",
         f"Hedef fiyat: ortalama {t['mean']:.2f}, en düşük {t['low']:.2f}, en yüksek {t['high']:.2f}",
-        "Haberler:",
     ]
+    if prev:
+        lines.append(
+            f"Son rapor ({prev['report_date']:%d.%m}): fiyat {prev['price']:.2f}, "
+            f"görünüm {prev['sentiment']}, yorum: {prev['summary']}"
+        )
+    lines.append("Haberler:")
     lines += [f"{i}. {n['title']} ({n['publisher']})" for i, n in enumerate(d["news"])]
     return "\n".join(lines)
 
 
-def build_section(symbol: str) -> str:
+def since_last(prev: dict, d: dict, sentiment: str) -> str:
+    """Önceki rapora göre değişenler; rakamlar kodla hesaplanır."""
+    change = (d["price"] - prev["price"]) / prev["price"] * 100
+    parts = [f"fiyat {change:+.2f}% ({prev['price']:.2f} → {d['price']:.2f})"]
+    r = d["ratings"]
+    moved = [f"{label} {prev[col]}→{int(r[key])}" for key, (col, label) in RATINGS.items() if prev[col] != int(r[key])]
+    parts.append("analistler: " + (", ".join(moved) if moved else "değişmedi"))
+    if prev["sentiment"] != sentiment:
+        parts.append(f"görünüm: {prev['sentiment']} → {sentiment}")
+    return f"**Son rapordan bu yana ({prev['report_date']:%d.%m}):** " + " · ".join(parts)
+
+
+def build_section(symbol: str, today: dt.date, conn) -> tuple[str, dict]:
+    """Rapordaki bölümü ve veritabanına yazılacak satırı döner."""
     d = fetch_data(symbol)
-    insight = analyst.run(build_prompt(d)).content
+    prev = db.last_report(conn, symbol, today) if conn else None
+    if prev:  # önceki raporda gösterilen haberleri tekrar gösterme
+        shown = {n["link"] for n in prev["news"]}
+        d["news"] = [n for n in d["news"] if n["link"] not in shown]
+    insight = analyst.run(build_prompt(d, prev)).content
     if not isinstance(insight, TickerInsight):
         raise ValueError(f"Model beklenen formatta cevap vermedi: {insight!r}")
 
     # Model sadece numara seçer; başlık ve link her zaman yfinance verisinden gelir.
     ids = [i for i in dict.fromkeys(insight.news_ids) if 0 <= i < len(d["news"])][:NEWS_PER_TICKER]
+    news = [d["news"][i] for i in ids]
     r, t = d["ratings"], d["targets"]
     total = r["strongBuy"] + r["buy"] + r["hold"] + r["sell"] + r["strongSell"]
 
@@ -97,14 +132,39 @@ def build_section(symbol: str) -> str:
         f"**Analistler ({total}):** {r['strongBuy']} Güçlü Al · {r['buy']} Al · {r['hold']} Tut · "
         f"{r['sell']} Sat · {r['strongSell']} Güçlü Sat",
         f"**Hedef fiyat:** ort. {t['mean']:.2f} (en düşük {t['low']:.2f} – en yüksek {t['high']:.2f})",
-        "",
-        "**Haberler:**",
     ]
-    for i in ids:
-        n = d["news"][i]
+    if prev:
+        lines.append(since_last(prev, d, insight.sentiment))
+    lines += ["", "**Haberler:**"]
+    for n in news:
         when = dt.datetime.fromtimestamp(n["providerPublishTime"], LOCAL_TZ).strftime("%d.%m %H:%M")
         lines.append(f"- [{n['title']}]({n['link']}) — {n['publisher']}, {when}")
-    return "\n".join(lines)
+    if not news:
+        lines.append("Yeni haber yok.")
+
+    row = {
+        "report_date": today,
+        "symbol": symbol,
+        "price": float(d["price"]),
+        "currency": d["currency"],
+        "change_pct": float(d["change_pct"]),
+        **{col: int(r[key]) for key, (col, _) in RATINGS.items()},
+        "target_mean": float(t["mean"]),
+        "target_low": float(t["low"]),
+        "target_high": float(t["high"]),
+        "sentiment": insight.sentiment,
+        "summary": insight.summary,
+        "news": [
+            {
+                "title": n["title"],
+                "link": n["link"],
+                "publisher": n["publisher"],
+                "published_at": dt.datetime.fromtimestamp(n["providerPublishTime"], dt.timezone.utc).isoformat(),
+            }
+            for n in news
+        ],
+    }
+    return "\n".join(lines), row
 
 
 def to_telegram_html(md: str) -> str:
@@ -136,11 +196,19 @@ def send_telegram(sections: list[str]) -> None:
 
 
 def main() -> None:
-    today = dt.datetime.now(LOCAL_TZ).date().isoformat()
-    sections = [f"# Günlük Hisse Raporu — {today}"]
+    today = dt.datetime.now(LOCAL_TZ).date()
+    try:
+        conn = db.connect()
+    except Exception as e:  # veritabanına ulaşılamasa da rapor yine gönderilsin
+        print(f"Veritabanına bağlanılamadı: {e}")
+        conn = None
+
+    sections, rows = [f"# Günlük Hisse Raporu — {today}"], []
     for symbol in WATCHLIST:
         try:
-            sections.append(build_section(symbol))
+            section, row = build_section(symbol, today, conn)
+            sections.append(section)
+            rows.append(row)
         except Exception as e:  # bir hisse hata verirse diğerleri yine raporlansın
             sections.append(f"## {symbol}\n\nVeri alınamadı: {e}")
 
@@ -151,6 +219,11 @@ def main() -> None:
     print(report)
     print(f"Kaydedildi: {path}")
     send_telegram(sections)
+
+    if conn is None:  # GitHub çalışmayı başarısız sayıp e-posta göndersin
+        raise SystemExit("Rapor gönderildi ama veritabanına kaydedilemedi.")
+    for row in rows:
+        db.save_report(conn, row)
 
 
 if __name__ == "__main__":

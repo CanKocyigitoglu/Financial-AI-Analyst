@@ -8,3 +8,4 @@ uvicorn
 groq
 openai
 httpx
+psycopg[binary]
