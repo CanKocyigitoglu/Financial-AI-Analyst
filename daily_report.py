@@ -52,7 +52,7 @@ analyst = Agent(
 def fetch_data(symbol: str) -> dict:
     ticker = yf.Ticker(symbol)
     price = ticker.fast_info["last_price"]
-    prev_close = ticker.fast_info["previous_close"]
+    prev_close = ticker.fast_info["regular_market_previous_close"]  # "previous_close" gece seansını da katıyor
     return {
         "symbol": symbol,
         "currency": ticker.fast_info["currency"],
