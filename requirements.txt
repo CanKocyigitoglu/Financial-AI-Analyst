@@ -1,0 +1,10 @@
+agno[os]
+python-dotenv
+yfinance
+packaging
+ddgs
+fastapi
+uvicorn
+groq
+openai
+httpx
