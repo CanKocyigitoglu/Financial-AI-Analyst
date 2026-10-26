@@ -1,10 +1,7 @@
 name: Scheduler test
 
 on:
-  schedule:
-    - cron: "15 21 * * *" # 21:15 deneme mesajı
-      timezone: "Europe/London"
-  workflow_dispatch:
+  workflow_dispatch: # cron-job.org tetikler
 
 jobs:
   ping:
@@ -13,7 +10,7 @@ jobs:
       - run: |
           curl -fsS -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=Deneme mesajı (GitHub, tetikleyici: ${{ github.event_name }}). Planlanan 21:15, çalıştığı an $(TZ=Europe/London date +%H:%M:%S) Londra saati."
+            --data-urlencode "text=Deneme mesajı: cron-job.org → GitHub. Çalıştığı an $(TZ=Europe/London date +%H:%M:%S) Londra saati."
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
