@@ -1,12 +1,8 @@
 name: Price alerts
 
 on:
-  schedule: # ABD borsası açıkken (09:30-16:00 New York) 15 dakikada bir
-    - cron: "30,45 9 * * 1-5"
-      timezone: "America/New_York"
-    - cron: "*/15 10-15 * * 1-5"
-      timezone: "America/New_York"
-  workflow_dispatch: # GitHub'da "Run workflow" ile elle çalıştırmak için
+  # Zamanlama cron-job.org'da: ABD borsası açıkken (09:30-15:45 New York) 15 dakikada bir.
+  workflow_dispatch: # cron-job.org tetikler; GitHub'da "Run workflow" ile elle de çalışır
 
 concurrency:
   group: price-alerts # iki kontrol aynı anda çalışıp aynı uyarıyı iki kez göndermesin

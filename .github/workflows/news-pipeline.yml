@@ -1,12 +1,8 @@
 name: News pipeline
 
 on:
-  schedule:
-    - cron: "10,40 6-20 * * 1-5" # hafta içi 06:10-20:40 New York, 30 dk'da bir
-      timezone: "America/New_York"
-    - cron: "10 */3 * * 0,6" # hafta sonu 3 saatte bir
-      timezone: "America/New_York"
-  workflow_dispatch: # GitHub'da "Run workflow" ile elle çalıştırmak için
+  # Zamanlama cron-job.org'da: hafta içi 06:10-20:40 New York 30 dk'da bir, hafta sonu 3 saatte bir.
+  workflow_dispatch: # cron-job.org tetikler; GitHub'da "Run workflow" ile elle de çalışır
 
 concurrency:
   group: news-pipeline # iki çalışma aynı haberi aynı anda işlemesin

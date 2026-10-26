@@ -1,10 +1,8 @@
 name: Daily stock report
 
 on:
-  schedule:
-    - cron: "5 15 * * 1-5" # hafta içi 15:05
-      timezone: "Europe/London" # yaz/kış saati geçişini GitHub kendisi halleder
-  workflow_dispatch: # GitHub'da "Run workflow" ile elle çalıştırmak için
+  # Zamanlama cron-job.org'da (hafta içi 15:05 Londra); GitHub'ın kendi zamanlayıcısı güvenilir değil.
+  workflow_dispatch: # cron-job.org tetikler; GitHub'da "Run workflow" ile elle de çalışır
 
 jobs:
   report:

@@ -1,10 +1,8 @@
 name: News audit
 
 on:
-  schedule:
-    - cron: "7 9 * * 6" # cumartesi 09:07
-      timezone: "Europe/London"
-  workflow_dispatch: # GitHub'da "Run workflow" ile elle çalıştırmak için
+  # Zamanlama cron-job.org'da (cumartesi 09:07 Londra).
+  workflow_dispatch: # cron-job.org tetikler; GitHub'da "Run workflow" ile elle de çalışır
 
 jobs:
   audit:
