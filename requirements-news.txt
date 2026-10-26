@@ -1,0 +1,3 @@
+-r requirements.txt
+trafilatura
+lxml_html_clean
