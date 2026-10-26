@@ -72,6 +72,15 @@ analyst = Agent(
 )
 
 
+def ask(agent: Agent, prompt: str, schema: type[BaseModel]):
+    """Model ara sıra yarım JSON döndürüyor (Groq 400, json_validate_failed); 3 kez dener."""
+    for _ in range(3):
+        out = agent.run(prompt).content
+        if isinstance(out, schema):
+            return out
+    raise ValueError(f"{schema.__name__} beklenen formatta değil: {out!r}")
+
+
 def fetch_body(url: str) -> str | None:
     try:
         r = httpx.get(url, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True, timeout=20)
@@ -93,9 +102,7 @@ def collect_and_analyze(conn) -> None:
 
         # 1) Başlıklardan eleme: ucuz bir çağrıyla sadece bu şirketle ilgili haberler ayrılır
         prompt = f"Hisse: {symbol}\n" + "\n".join(f"{i}. {n['title']} ({n['publisher']})" for i, n in enumerate(new))
-        triage = triager.run(prompt).content
-        if not isinstance(triage, Triage):
-            raise ValueError(f"Eleme beklenen formatta değil: {triage!r}")
+        triage = ask(triager, prompt, Triage)
         keep = {i for i in triage.relevant_ids if 0 <= i < len(new)}
         for i, n in enumerate(new):
             if i not in keep:
@@ -110,12 +117,12 @@ def collect_and_analyze(conn) -> None:
             news_db.set_body(conn, n["uuid"], body)
             published = dt.datetime.fromtimestamp(n["providerPublishTime"], dt.timezone.utc)
             text = body[:BODY_CHARS] if body else "(Metin alınamadı; sadece başlığa göre değerlendir.)"
-            a = analyst.run(
+            a = ask(
+                analyst,
                 f"Hisse: {symbol}\nBaşlık: {n['title']}\nYayıncı: {n['publisher']}\n"
-                f"Yayın zamanı (UTC): {published:%Y-%m-%d %H:%M}\n\nMetin:\n{text}"
-            ).content
-            if not isinstance(a, NewsAnalysis):
-                raise ValueError(f"Analiz beklenen formatta değil: {a!r}")
+                f"Yayın zamanı (UTC): {published:%Y-%m-%d %H:%M}\n\nMetin:\n{text}",
+                NewsAnalysis,
+            )
             news_db.save_analysis(conn, n["uuid"], symbol, MODEL_ID, a.model_dump())
             budget -= 1
             print(f"{symbol}: {a.direction} {a.strength} | {a.event_type} | {n['title'][:70]}")
