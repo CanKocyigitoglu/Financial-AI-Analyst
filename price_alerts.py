@@ -15,7 +15,7 @@ from agno.models.groq import Groq
 from pydantic import BaseModel, Field
 
 import db
-from daily_report import LOCAL_TZ, NEWS_CANDIDATES, NEWS_PER_TICKER, WATCHLIST, send_telegram
+from daily_report import LOCAL_TZ, NEWS_CANDIDATES, NEWS_PER_TICKER, WATCHLIST, ask, send_telegram
 
 ALERT_THRESHOLD = 3.0  # yüzde
 MARKET_TZ = ZoneInfo("America/New_York")
@@ -55,9 +55,7 @@ def build_alert(symbol: str, info: dict) -> tuple[str, str]:
         [f"Hisse: {symbol}", f"Bugünkü değişim: {change:+.2f}%", "Haberler:"]
         + [f"{i}. {n['title']} ({n['publisher']})" for i, n in enumerate(news)]
     )
-    explanation = explainer.run(prompt).content
-    if not isinstance(explanation, MoveExplanation):
-        raise ValueError(f"Model beklenen formatta cevap vermedi: {explanation!r}")
+    explanation = ask(explainer, prompt, MoveExplanation)
 
     ids = [i for i in dict.fromkeys(explanation.news_ids) if 0 <= i < len(news)][:NEWS_PER_TICKER]
     arrow = "📈" if change > 0 else "📉"

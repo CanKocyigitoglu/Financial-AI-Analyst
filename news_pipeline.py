@@ -16,7 +16,7 @@ from agno.models.groq import Groq
 from pydantic import BaseModel, Field
 
 import news_db
-from daily_report import WATCHLIST
+from daily_report import WATCHLIST, ask
 
 MODEL_ID = "openai/gpt-oss-20b"  # rapor ve uyarılar gpt-oss-120b kullanıyor
 NEWS_PER_SYMBOL = 10
@@ -70,15 +70,6 @@ analyst = Agent(
         "Sadece metindeki bilgilere dayan; metinde olmayan bilgi ekleme.",
     ],
 )
-
-
-def ask(agent: Agent, prompt: str, schema: type[BaseModel]):
-    """Model ara sıra yarım JSON döndürüyor (Groq 400, json_validate_failed); 3 kez dener."""
-    for _ in range(3):
-        out = agent.run(prompt).content
-        if isinstance(out, schema):
-            return out
-    raise ValueError(f"{schema.__name__} beklenen formatta değil: {out!r}")
 
 
 def fetch_body(url: str) -> str | None:

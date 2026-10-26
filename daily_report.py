@@ -61,6 +61,15 @@ analyst = Agent(
 )
 
 
+def ask(agent: Agent, prompt: str, schema: type[BaseModel]):
+    """Model ara sıra yarım JSON döndürüyor (Groq 400, json_validate_failed); 3 kez dener."""
+    for _ in range(3):
+        out = agent.run(prompt).content
+        if isinstance(out, schema):
+            return out
+    raise ValueError(f"{schema.__name__} beklenen formatta değil: {out!r}")
+
+
 def fetch_data(symbol: str) -> dict:
     ticker = yf.Ticker(symbol)
     price = ticker.fast_info["last_price"]
@@ -114,9 +123,7 @@ def build_section(symbol: str, today: dt.date, conn) -> tuple[str, dict]:
     if prev:  # önceki raporda gösterilen haberleri tekrar gösterme
         shown = {n["link"] for n in prev["news"]}
         d["news"] = [n for n in d["news"] if n["link"] not in shown]
-    insight = analyst.run(build_prompt(d, prev)).content
-    if not isinstance(insight, TickerInsight):
-        raise ValueError(f"Model beklenen formatta cevap vermedi: {insight!r}")
+    insight = ask(analyst, build_prompt(d, prev), TickerInsight)
 
     # Model sadece numara seçer; başlık ve link her zaman yfinance verisinden gelir.
     ids = [i for i in dict.fromkeys(insight.news_ids) if 0 <= i < len(d["news"])][:NEWS_PER_TICKER]
