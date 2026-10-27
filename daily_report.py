@@ -182,10 +182,11 @@ def to_telegram_html(md: str) -> str:
     return re.sub(r"\[(.+?)\]\((https?://[^)\s]+)\)", r'<a href="\2">\1</a>', text)
 
 
-def send_telegram(sections: list[str]) -> None:
-    token, chat_id = os.getenv("TELEGRAM_TOKEN"), os.getenv("TELEGRAM_CHAT_ID")
+def send_telegram(sections: list[str], token_env: str = "TELEGRAM_TOKEN") -> None:
+    """token_env: hangi bot (rapor, favori uyarıları, izleme listesi); sohbet numarası aynı."""
+    token, chat_id = os.getenv(token_env), os.getenv("TELEGRAM_CHAT_ID")
     if not (token and chat_id):
-        print("TELEGRAM_TOKEN / TELEGRAM_CHAT_ID ayarlı değil; Telegram'a gönderilmedi.")
+        print(f"{token_env} / TELEGRAM_CHAT_ID ayarlı değil; Telegram'a gönderilmedi.")
         return
     for section in sections:  # her hisse ayrı mesaj: Telegram'ın 4096 karakter sınırına takılmasın
         r = httpx.post(

@@ -89,7 +89,7 @@ def main() -> None:
             print(f"{symbol}: {change:+.2f}%" + (" → uyarı" if band else ""))
             if band:
                 text, reason = build_alert(symbol, info)
-                send_telegram([text])
+                send_telegram([text], "TELEGRAM_ALERT_TOKEN")  # ayrı bot: favori uyarıları
                 db.record_alert(  # sadece gönderildikten sonra kaydet
                     conn, trade_date=today, symbol=symbol, band=band,
                     change_pct=float(change), price=float(info["regularMarketPrice"]), reason=reason,
