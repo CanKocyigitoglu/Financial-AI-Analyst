@@ -12,9 +12,10 @@ jobs:
             curl -fsS -o /dev/null -X POST "https://api.telegram.org/bot$1/sendMessage" \
               --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" --data-urlencode "text=$2"
           }
-          send "$TELEGRAM_TOKEN" "✅ Rapor botu: hafta içi 15:05 raporu ve cumartesi haftalık haber denetimi bu sohbete gelecek."
+          test -n "$TELEGRAM_ALERT_TOKEN" && test -n "$TELEGRAM_WATCH_TOKEN" || { echo "Yeni bot secret'ları eksik"; exit 1; }
           send "$TELEGRAM_ALERT_TOKEN" "✅ Favori uyarı botu: NVDA, AAPL, MSFT, TSLA için açıklamalı %3 basamak uyarıları bu sohbete gelecek."
           send "$TELEGRAM_WATCH_TOKEN" "✅ İzleme listesi botu: izleme listesindeki hisselerin açıklamasız %3 basamak uyarıları bu sohbete gelecek."
+          send "$TELEGRAM_TOKEN" "✅ Rapor botu: hafta içi 15:05 raporu ve cumartesi haftalık haber denetimi bu sohbete gelecek. Uyarılar artık ayrı botlardan gelecek."
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_ALERT_TOKEN: ${{ secrets.TELEGRAM_ALERT_TOKEN }}
