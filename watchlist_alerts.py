@@ -14,7 +14,23 @@ import db
 from daily_report import send_telegram
 from price_alerts import MARKET_TZ, new_band
 
-WATCHLIST = ["NVDA", "AAPL", "MSFT", "TSLA"]  # şimdilik favorilerle aynı; 50 hisseyle test edildi
+WATCHLIST = [  # 148 ABD hissesi (favoriler de dahil)
+    "AAPL", "MSFT", "NVDA", "AVGO", "ADBE", "CRM", "AMD", "CSCO", "ACN", "QCOM",
+    "TXN", "IBM", "AMAT", "INTU", "ORCL", "NOW", "PANW", "MU", "UNH", "LLY",
+    "JNJ", "ABBV", "MRK", "PFE", "TMO", "ABT", "DHR", "AMGN", "ISRG", "CVS",
+    "SYK", "BMY", "GILD", "REGN", "MDT", "BDX", "JPM", "V", "MA", "BAC",
+    "WFC", "MS", "GS", "AXP", "BLK", "C", "SPGI", "CME", "CB", "USB",
+    "PNC", "MCO", "SCHW", "MRSH", "AMZN", "TSLA", "HD", "MCD", "NKE", "LOW",
+    "SBUX", "TJX", "BKNG", "CMG", "MAR", "F", "GM", "ORLY", "LVS", "TGT",
+    "GOOGL", "META", "NFLX", "DIS", "TMUS", "VZ", "T", "CMCSA", "TTWO", "CHTR",
+    "FOXA", "OMC", "GE", "CAT", "UNP", "RTX", "HON", "DE", "LMT", "UPS",
+    "BA", "MMM", "ADP", "WM", "FDX", "NOC", "EMR", "WMT", "PG", "KO",
+    "PEP", "COST", "PM", "MO", "MDLZ", "CL", "KMB", "EL", "STZ", "SYY",
+    "XOM", "CVX", "COP", "EOG", "SLB", "MPC", "PSX", "VLO", "DVN", "HAL",
+    "OKE", "BKR", "LIN", "SHW", "APD", "ECL", "NUE", "FCX", "PPG", "DOW",
+    "NEM", "ALB", "PLD", "AMT", "EQIX", "O", "CCI", "PSA", "SPG", "DLR",
+    "SBAC", "WY", "NEE", "SO", "DUK", "D", "SRE", "AEP",
+]
 LINES_PER_MESSAGE = 30  # Telegram'ın 4096 karakter sınırı
 
 SCHEMA = """
