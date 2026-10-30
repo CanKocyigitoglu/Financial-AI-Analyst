@@ -1,0 +1,24 @@
+name: Pie report
+
+on:
+  # Zamanlama cron-job.org'da: hafta içi 10:00-16:00 New York, her saat başı.
+  workflow_dispatch: # cron-job.org tetikler; GitHub'da "Run workflow" ile elle de çalışır
+
+concurrency:
+  group: pie-report
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python pie_report.py
+        env:
+          TELEGRAM_PIE_TOKEN: ${{ secrets.TELEGRAM_PIE_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
