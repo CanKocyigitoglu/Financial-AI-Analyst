@@ -32,6 +32,7 @@ WATCHLIST = [  # 148 ABD hissesi (favoriler de dahil)
     "SBAC", "WY", "NEE", "SO", "DUK", "D", "SRE", "AEP",
 ]
 LINES_PER_MESSAGE = 30  # Telegram'ın 4096 karakter sınırı
+SEPARATOR = "──────────"  # yükselenlerle düşenlerin arası ("****" kalın yazı işaretine dönüşüp bozuluyor)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS watch_alerts (
@@ -61,7 +62,7 @@ def main() -> None:
     conn = db.connect()  # bağlanamazsa uyarı gönderme: hangilerinin gittiğini bilemeyiz, tekrar tekrar gider
     conn.execute(SCHEMA)
 
-    lines, rows, errors, closed = [], [], [], 0
+    alerts, rows, errors, closed = [], [], [], 0
     for symbol in WATCHLIST:
         try:
             info = yf.Ticker(symbol).info
@@ -74,12 +75,18 @@ def main() -> None:
             if band:
                 arrow = "📈" if change > 0 else "📉"
                 name = info.get("shortName") or symbol
-                lines.append(f"{arrow} **{symbol}** ({name}) {change:+.2f}% · {price:.2f} {info['currency']}")
+                alerts.append((change, f"{arrow} **{symbol}** ({name}) {change:+.2f}% · {price:.2f} {info['currency']}"))
                 rows.append((today, symbol, band, float(change), float(price)))
         except Exception as e:  # bir hisse hata verirse diğerleri yine kontrol edilsin
             errors.append(f"{symbol}: {e}")
 
-    if lines:
+    if alerts:
+        # büyükten küçüğe: en çok yükselen en üstte, en çok düşen en altta
+        alerts.sort(key=lambda a: a[0], reverse=True)
+        lines = [line for _, line in alerts]
+        ups = sum(change > 0 for change, _ in alerts)
+        if 0 < ups < len(lines):  # hem yükselen hem düşen varsa araya ayraç
+            lines.insert(ups, SEPARATOR)
         chunks = [lines[i:i + LINES_PER_MESSAGE] for i in range(0, len(lines), LINES_PER_MESSAGE)]
         send_telegram(["\n".join(c) for c in chunks], "TELEGRAM_WATCH_TOKEN")
         with conn.cursor() as cur:  # sadece gönderildikten sonra kaydet
